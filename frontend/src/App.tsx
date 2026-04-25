@@ -1,19 +1,30 @@
 import { useEffect, useState } from "react";
-import { getHealth } from "./services/api";
+import { getPrediction } from "./services/api";
 
 function App() {
-  const [status, setStatus] = useState<string>("Loading...");
+  const [result, setResult] = useState<string>("No prediction yet");
 
-  useEffect(() => {
-    getHealth()
-      .then((data) => setStatus(data.status))
-      .catch((err) => setStatus("Error: " + err.message));
-  }, []);
+  const handleClick = async () => {
+    try {
+      const data = await getPrediction({
+        temperature: 15,
+        rain: true,
+      });
+
+      setResult(data.advice);
+    } catch (err) {
+      console.error(err);
+      setResult("Error calling backend");
+    }
+  };
 
   return (
     <div>
       <h1>WeatherWise</h1>
-      <p>Backend status: {status}</p>
+
+      <button onClick={handleClick}>Get Recommendation</button>
+
+      <p>{result}</p>
     </div>
   );
 }
