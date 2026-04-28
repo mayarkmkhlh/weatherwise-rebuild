@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from backend.data import df
 
 app = FastAPI()
 
@@ -22,15 +23,29 @@ class PredictRequest(BaseModel):
 
 @app.post("/predict")
 def predict(data: PredictRequest):
+
+    # 🔹 Step 1: Filter rain condition
     if data.rain:
-        return {
-            "umbrella": True,
-            "clothing": "light_jacket",
-            "advice": "Rain expected — take an umbrella."
-        }
+        df_filtered = df[df["precipitation_mm"] > 0]
     else:
-        return {
-            "umbrella": False,
-            "clothing": "t_shirt",
-            "advice": "Weather is clear — light clothing is fine."
-        }
+        df_filtered = df[df["precipitation_mm"] == 0]
+
+    # 🔹 Step 2: If empty, fallback to full dataset
+    if df_filtered.empty:
+        df_filtered = df
+
+    # 🔹 Step 3: Compute temperature difference
+    df_filtered = df_filtered.copy()  # avoid warning
+    df_filtered["temp_diff"] = abs(df_filtered["temperature_c"] - data.temperature)
+
+    # 🔹 Step 4: Sort by closest temperature
+    df_filtered = df_filtered.sort_values(by="temp_diff")
+
+    # 🔹 Step 5: Pick best match
+    row = df_filtered.iloc[0]
+
+    return {
+        "umbrella": bool(row["umbrella_needed"]),
+        "clothing": row["clothing_recommendation"],
+        "advice": row["recommendation_text"],
+    }
